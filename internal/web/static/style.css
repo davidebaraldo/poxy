@@ -210,6 +210,7 @@ table.hdr { font-size: 12px; }
 table.hdr td { padding: 3px 8px; border-bottom: 1px solid rgba(34,48,68,.5); vertical-align: top; font-family: var(--mono); }
 table.hdr td:first-child { color: var(--cyan); white-space: nowrap; }
 table.hdr td:last-child { color: #b9c6da; }
+pre.body { margin: 0; max-height: 280px; overflow: auto; background: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font-family: var(--mono); font-size: 12px; color: #b9c6da; white-space: pre-wrap; word-break: break-word; }
 /* valori lunghi (token/Authorization): troncati, click per espandere */
 table.hdr td.hval { max-width: 560px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 table.hdr td.hval::after { content: "  ⤢"; color: var(--dim); font-size: 10px; }

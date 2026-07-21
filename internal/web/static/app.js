@@ -157,13 +157,43 @@ function renderDetail(e) {
   const kv = fields
     .map(([k, v]) => `<div class="kv"><span>${esc(k)}</span><code>${esc(v)}</code></div>`)
     .join("");
+  const bodies = (e.reqBody || e.respBody)
+    ? `<div class="hdrs">
+        <div><h4>request body</h4>${renderBody(e.reqBody, e.reqBodyTruncated)}</div>
+        <div><h4>response body</h4>${renderBody(e.respBody, e.respBodyTruncated)}</div>
+      </div>`
+    : "";
   return `<div class="detail">
     <div class="kvgrid">${kv}</div>
     <div class="hdrs">
       <div><h4>request headers (verso destinazione)</h4>${renderHeaders(e.reqHeaders)}</div>
       <div><h4>response headers (dalla destinazione)</h4>${renderHeaders(e.respHeaders)}</div>
     </div>
+    ${bodies}
   </div>`;
+}
+
+function renderBody(b64, trunc) {
+  if (!b64) return '<div class="muted small">vuoto</div>';
+  let bytes;
+  try {
+    const bin = atob(b64);
+    bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  } catch (_) { return '<div class="muted small">—</div>'; }
+  const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+  let ctrl = 0;
+  for (const ch of text) {
+    const c = ch.codePointAt(0);
+    if (c < 9 || (c > 13 && c < 32) || c === 0xfffd) ctrl++;
+  }
+  if (ctrl > text.length * 0.02) {
+    return `<div class="muted small">binario (${bytes.length} byte)${trunc ? " · troncato" : ""}</div>`;
+  }
+  let out = text;
+  try { out = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+  const note = trunc ? '<div class="muted small">… troncato a 32KB</div>' : "";
+  return `<pre class="body">${esc(out)}</pre>${note}`;
 }
 
 function renderHeaders(h) {
@@ -201,6 +231,7 @@ async function loadEgress() {
   $("#e-default").value = cfg.defaultAction || "allow";
   $("#e-allowprivate").checked = !!cfg.allowPrivate;
   $("#e-normalize").checked = !!cfg.normalizeFingerprint;
+  $("#e-capture").checked = !!cfg.captureBodies;
   $("#e-set").value = formatHeaders(cfg.setHeaders);
   $("#e-strip").value = (cfg.stripHeaders || []).join("\n");
 }
@@ -212,6 +243,7 @@ $("#save-egress").addEventListener("click", async () => {
     defaultAction: $("#e-default").value,
     allowPrivate: $("#e-allowprivate").checked,
     normalizeFingerprint: $("#e-normalize").checked,
+    captureBodies: $("#e-capture").checked,
     setHeaders: parseHeaders($("#e-set").value),
     stripHeaders: parseLines($("#e-strip").value),
   };

@@ -30,6 +30,11 @@ type Entry struct {
 
 	ReqHeaders  map[string][]string `json:"reqHeaders,omitempty"`
 	RespHeaders map[string][]string `json:"respHeaders,omitempty"`
+
+	ReqBody           string `json:"reqBody,omitempty"`  // base64, cap 32KB
+	RespBody          string `json:"respBody,omitempty"` // base64, cap 32KB
+	ReqBodyTruncated  bool   `json:"reqBodyTruncated,omitempty"`
+	RespBodyTruncated bool   `json:"respBodyTruncated,omitempty"`
 }
 
 // Stats sono i totali aggregati mostrati in dashboard.

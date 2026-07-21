@@ -37,6 +37,9 @@ type EgressConfig struct {
 	// client (Client Hints, Sec-Fetch-*, Accept-Language, DNT, Priority, ...)
 	// così tutti i client dietro poxy risultano indistinguibili tra loro.
 	NormalizeFingerprint bool `json:"normalizeFingerprint"`
+	// CaptureBodies, se true, cattura i primi 32KB del body di richiesta e
+	// risposta e li mostra nel pannello (modalità debug, più memoria/CPU).
+	CaptureBodies bool `json:"captureBodies"`
 }
 
 // DomainRule è una regola per un pattern di dominio. Campi vuoti ereditano dal
@@ -71,6 +74,7 @@ type Effective struct {
 	StripHeaders         []string
 	AllowPrivate         bool
 	NormalizeFingerprint bool
+	CaptureBodies        bool
 	MatchedRule          string // pattern della regola dominio applicata, "" se solo globale
 }
 
@@ -201,6 +205,7 @@ func (s *Store) Resolve(host string) Effective {
 		StripHeaders:         append([]string{}, s.cfg.Egress.StripHeaders...),
 		AllowPrivate:         s.cfg.Egress.AllowPrivate,
 		NormalizeFingerprint: s.cfg.Egress.NormalizeFingerprint,
+		CaptureBodies:        s.cfg.Egress.CaptureBodies,
 	}
 	for k, v := range s.cfg.Egress.SetHeaders {
 		eff.SetHeaders[k] = v

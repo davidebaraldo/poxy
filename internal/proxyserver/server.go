@@ -5,9 +5,11 @@ package proxyserver
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net"
@@ -308,6 +310,12 @@ func (s *Server) serveRequest(w io.Writer, req *http.Request, scheme, host, host
 		req.Body = tb
 	}
 
+	var reqCap *captureReader
+	if eff.CaptureBodies && req.Body != nil {
+		reqCap = &captureReader{inner: req.Body, cap: maxBodyCapture}
+		req.Body = reqCap
+	}
+
 	resp, err := s.egress.RoundTrip(ctx, req, eff.Fingerprint, eff.AllowPrivate)
 	if err != nil {
 		e.Error = err.Error()
@@ -339,6 +347,12 @@ func (s *Server) serveRequest(w io.Writer, req *http.Request, scheme, host, host
 	e.Status = resp.StatusCode
 	e.RespHeaders = cloneHeaders(resp.Header)
 
+	var respCap *captureReader
+	if eff.CaptureBodies && resp.Body != nil {
+		respCap = &captureReader{inner: resp.Body, cap: maxBodyCapture}
+		resp.Body = respCap
+	}
+
 	cw := &countWriter{w: w}
 	if err := resp.Write(cw); err != nil {
 		e.Error = "write client: " + err.Error()
@@ -355,6 +369,13 @@ func (s *Server) serveRequest(w io.Writer, req *http.Request, scheme, host, host
 		case <-tb.done:
 		case <-ctx.Done():
 		}
+	}
+
+	if reqCap != nil {
+		e.ReqBody, e.ReqBodyTruncated = reqCap.captured()
+	}
+	if respCap != nil {
+		e.RespBody, e.RespBodyTruncated = respCap.captured()
 	}
 
 	e.RespBytes = cw.n
@@ -390,6 +411,43 @@ func (b *trackedBody) Close() error {
 }
 
 func (b *trackedBody) signal() { b.once.Do(func() { close(b.done) }) }
+
+// maxBodyCapture limita i byte di body catturati quando CaptureBodies è attivo.
+const maxBodyCapture = 32 * 1024
+
+// captureReader fa da tee: inoltra le letture e ne conserva i primi cap byte.
+type captureReader struct {
+	inner io.ReadCloser
+	buf   bytes.Buffer
+	cap   int
+	trunc bool
+}
+
+func (c *captureReader) Read(p []byte) (int, error) {
+	n, err := c.inner.Read(p)
+	if n > 0 {
+		if rem := c.cap - c.buf.Len(); rem > 0 {
+			if n <= rem {
+				c.buf.Write(p[:n])
+			} else {
+				c.buf.Write(p[:rem])
+				c.trunc = true
+			}
+		} else {
+			c.trunc = true
+		}
+	}
+	return n, err
+}
+
+func (c *captureReader) Close() error { return c.inner.Close() }
+
+func (c *captureReader) captured() (string, bool) {
+	if c.buf.Len() == 0 {
+		return "", c.trunc
+	}
+	return base64.StdEncoding.EncodeToString(c.buf.Bytes()), c.trunc
+}
 
 func (s *Server) forgeTLSCert(name string) (*tls.Certificate, error) {
 	s.certMu.RLock()
