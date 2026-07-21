@@ -20,47 +20,65 @@ jobs:
       - run: go build ./...
       - run: go test ./...
 
-  # Cross-compile server + client per Windows, macOS, Linux (amd64 + arm64).
-  binaries:
+  # Builda server + client per tutte le piattaforme e crea archivi distribuibili:
+  # ogni archivio contiene il server + TUTTI i binari client, così il server
+  # serve gli installer per ogni OS (endpoint /download e /api/setup).
+  release:
     needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    strategy:
-      matrix:
-        include:
-          - { goos: linux,   goarch: amd64 }
-          - { goos: linux,   goarch: arm64 }
-          - { goos: darwin,  goarch: amd64 }
-          - { goos: darwin,  goarch: arm64 }
-          - { goos: windows, goarch: amd64, ext: .exe }
-          - { goos: windows, goarch: arm64, ext: .exe }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
-      - name: build
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: "0"
+
+      - name: build all binaries
         run: |
-          mkdir -p dist
-          go build -trimpath -ldflags="-s -w" -o "dist/poxy-server-${GOOS}-${GOARCH}${{ matrix.ext }}" ./cmd/poxy-server
-          go build -trimpath -ldflags="-s -w" -o "dist/poxy-client-${GOOS}-${GOARCH}${{ matrix.ext }}" ./cmd/poxy-client
+          mkdir -p build
+          for t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            os="${t%/*}"; arch="${t#*/}"; ext=""; [ "$os" = "windows" ] && ext=".exe"
+            CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags="-s -w" -o "build/poxy-server-$os-$arch$ext" ./cmd/poxy-server
+            CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags="-s -w" -o "build/poxy-client-$os-$arch$ext" ./cmd/poxy-client
+          done
+
+      - name: package distributables
+        run: |
+          mkdir -p dist stage
+          for t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            os="${t%/*}"; arch="${t#*/}"; ext=""; [ "$os" = "windows" ] && ext=".exe"
+            pkg="poxy-server-$os-$arch"
+            mkdir -p "stage/$pkg"
+            # server (rinominato) + TUTTI i client (nomi completi per /download) + esempi + README
+            cp "build/poxy-server-$os-$arch$ext" "stage/$pkg/poxy-server$ext"
+            cp build/poxy-client-* "stage/$pkg/"
+            cp README.md "stage/$pkg/"
+            cp -r examples "stage/$pkg/"
+            if [ "$os" = "windows" ]; then
+              (cd stage && zip -qr "../dist/$pkg.zip" "$pkg")
+            else
+              tar -C stage -czf "dist/$pkg.tar.gz" "$pkg"
+            fi
+          done
+          # binari client singoli (per download diretto)
+          cp build/poxy-client-* dist/
+          (cd dist && sha256sum * > checksums.txt)
+          ls -la dist
+
       - uses: actions/upload-artifact@v4
         with:
-          name: poxy-${{ matrix.goos }}-${{ matrix.goarch }}
+          name: poxy-dist
           path: dist/*
+
       - name: release (solo su tag)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
 
-  # Build & push dell'immagine server su GHCR.
+  # Immagine server per GHCR: include tutti i client per il download dal server.
   docker:
     needs: test
     runs-on: ubuntu-latest

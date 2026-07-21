@@ -86,6 +86,8 @@ em { color: var(--cyan); font-style: normal; }
   padding: 3px 9px; border-radius: 999px;
   border: 1px solid var(--line-2); background: var(--ink-3);
 }
+.lang { width: auto; padding: 6px 10px; font-size: 12.5px; background: var(--ink-3); border-color: var(--line-2); color: var(--txt); border-radius: 8px; cursor: pointer; }
+.lang:hover { border-color: var(--violet); }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 0 rgba(255,92,106,.5); }
 .dot.on { background: var(--cyan); animation: pulse 2s infinite; }
 @keyframes pulse {

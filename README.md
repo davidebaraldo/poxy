@@ -61,8 +61,24 @@ Il volume `/data` conserva le CA e la config — non perderlo o i client vanno r
 `.github/workflows/build.yml`:
 - test + `go vet` + build ad ogni push/PR;
 - cross-compila **server e client** per Windows, macOS, Linux (amd64 + arm64);
+- crea **archivi distribuibili** `poxy-server-<os>-<arch>.(zip|tar.gz)`: ognuno
+  contiene il server + **tutti** i binari client + esempi + README, così il
+  server serve gli installer per ogni piattaforma (`/download`, `/api/setup`);
 - pubblica l'immagine server su GHCR (`ghcr.io/<owner>/poxy`);
-- su tag `vX.Y.Z` allega i binari a una GitHub Release.
+- su tag `vX.Y.Z` allega archivi + `checksums.txt` a una GitHub Release.
+
+Rilascio:
+```
+git tag v0.1.0 && git push origin v0.1.0
+```
+Poi scarichi `poxy-server-<tuo-os>-<arch>.*`, lo scompatti e avvii `poxy-server`:
+serve pannello + installer per Windows/macOS/Linux, tutto incluso.
+
+## Interfaccia
+
+Pannello web multilingua (IT · EN · ES · FR · DE, auto-rilevata, selettore in
+alto a destra), tema scuro, feed traffico in tempo reale con dettaglio per
+richiesta (header e, se abilitato, body).
 
 ## Avvio server
 

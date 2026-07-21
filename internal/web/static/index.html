@@ -21,9 +21,9 @@
         <circle cx="32" cy="13" r="5.4" fill="url(#lg)"/>
       </svg>
       <h1 class="wordmark">poxy</h1>
-      <p class="tagline">traffico anonimo — un'unica identità</p>
-      <input type="password" id="login-password" placeholder="password" autocomplete="current-password" required>
-      <button type="submit">accedi</button>
+      <p class="tagline" data-i18n="login.tagline">traffico anonimo — un'unica identità</p>
+      <input type="password" id="login-password" data-i18n-ph="login.password" placeholder="password" autocomplete="current-password" required>
+      <button type="submit" data-i18n="login.enter">accedi</button>
       <div id="login-error" class="error"></div>
     </form>
   </div>
@@ -43,47 +43,50 @@
       </div>
 
       <div class="status">
-        <span class="live"><i id="live-dot" class="dot"></i><span id="hdr-state">connessione…</span></span>
+        <span class="live"><i id="live-dot" class="dot"></i><span id="hdr-state" data-i18n="status.connecting">connessione…</span></span>
         <span class="vr"></span>
-        <span class="readout"><b id="hdr-clients">0</b> client</span>
+        <span class="readout"><b id="hdr-clients">0</b> <span data-i18n="status.clients">client</span></span>
         <span class="conv" aria-hidden="true">→</span>
-        <span class="readout accent">1 identità</span>
+        <span class="readout accent" data-i18n="status.identity">1 identità</span>
         <span class="chip" id="hdr-fp">—</span>
       </div>
 
-      <button id="logout" class="ghost-btn">esci</button>
+      <select id="lang" class="lang" aria-label="language"></select>
+      <button id="logout" class="ghost-btn" data-i18n="nav.logout">esci</button>
     </header>
 
     <nav class="tabs">
-      <button data-tab="dashboard" class="active">dashboard</button>
-      <button data-tab="domini">domini</button>
-      <button data-tab="uscita">uscita</button>
-      <button data-tab="client">client</button>
-      <button data-tab="impostazioni">impostazioni</button>
+      <button data-tab="dashboard" class="active" data-i18n="nav.dashboard">dashboard</button>
+      <button data-tab="domini" data-i18n="nav.domains">domini</button>
+      <button data-tab="uscita" data-i18n="nav.egress">uscita</button>
+      <button data-tab="client" data-i18n="nav.client">client</button>
+      <button data-tab="impostazioni" data-i18n="nav.settings">impostazioni</button>
     </nav>
 
     <main>
       <!-- DASHBOARD -->
       <section id="tab-dashboard" class="tab">
         <div class="stats">
-          <div class="stat"><span class="eyebrow">richieste</span><span class="num" id="s-total">0</span></div>
-          <div class="stat block"><span class="eyebrow">bloccate</span><span class="num" id="s-blocked">0</span></div>
-          <div class="stat err"><span class="eyebrow">errori</span><span class="num" id="s-errors">0</span></div>
-          <div class="stat live-stat"><span class="eyebrow">client</span><span class="num" id="s-connected">0</span></div>
-          <div class="stat"><span class="eyebrow">ingresso ↓</span><span class="num sm" id="s-in">0</span></div>
-          <div class="stat"><span class="eyebrow">uscita ↑</span><span class="num sm" id="s-out">0</span></div>
+          <div class="stat"><span class="eyebrow" data-i18n="stat.requests">richieste</span><span class="num" id="s-total">0</span></div>
+          <div class="stat block"><span class="eyebrow" data-i18n="stat.blocked">bloccate</span><span class="num" id="s-blocked">0</span></div>
+          <div class="stat err"><span class="eyebrow" data-i18n="stat.errors">errori</span><span class="num" id="s-errors">0</span></div>
+          <div class="stat live-stat"><span class="eyebrow" data-i18n="stat.clients">client</span><span class="num" id="s-connected">0</span></div>
+          <div class="stat"><span class="eyebrow" data-i18n="stat.in">ingresso ↓</span><span class="num sm" id="s-in">0</span></div>
+          <div class="stat"><span class="eyebrow" data-i18n="stat.out">uscita ↑</span><span class="num sm" id="s-out">0</span></div>
         </div>
 
         <div class="feed-head">
-          <span class="eyebrow">feed traffico</span>
-          <span class="hint">clicca una riga per i dettagli</span>
-          <button id="clear-traffic" class="ghost-btn sm">pulisci</button>
+          <span class="eyebrow" data-i18n="feed.title">feed traffico</span>
+          <span class="hint" data-i18n="feed.hint">clicca una riga per i dettagli</span>
+          <button id="clear-traffic" class="ghost-btn sm" data-i18n="feed.clear">pulisci</button>
         </div>
         <div class="table-wrap">
           <table id="traffic">
             <thead><tr>
-              <th>ora</th><th>client</th><th>metodo</th><th>host</th><th>path</th>
-              <th>stato</th><th>fp</th><th>regola</th><th>↑</th><th>↓</th><th>ms</th>
+              <th data-i18n="th.time">ora</th><th data-i18n="th.client">client</th><th data-i18n="th.method">metodo</th>
+              <th data-i18n="th.host">host</th><th data-i18n="th.path">path</th>
+              <th data-i18n="th.status">stato</th><th data-i18n="th.fp">fp</th><th data-i18n="th.rule">regola</th>
+              <th>↑</th><th>↓</th><th>ms</th>
             </tr></thead>
             <tbody></tbody>
           </table>
@@ -93,15 +96,16 @@
       <!-- DOMINI -->
       <section id="tab-domini" class="tab hidden">
         <div class="toolbar">
-          <button id="add-domain">+ dominio</button>
-          <button id="save-domains" class="primary">salva</button>
+          <button id="add-domain" data-i18n="domains.add">+ dominio</button>
+          <button id="save-domains" class="primary" data-i18n="btn.save">salva</button>
           <span id="domini-status" class="note"></span>
         </div>
-        <p class="hint">pattern: <code>example.com</code> (esatto) · <code>*.example.com</code> (sottodomini) · <code>*</code> (tutti). Azione vuota = eredita default.</p>
+        <p class="hint" data-i18n-html="domains.help">pattern: <code>example.com</code> (esatto) · <code>*.example.com</code> (sottodomini) · <code>*</code> (tutti). Azione vuota = eredita default.</p>
         <div class="table-wrap">
           <table id="domains">
             <thead><tr>
-              <th>pattern</th><th>azione</th><th>user-agent</th><th>set headers</th><th>strip headers</th><th>note</th><th></th>
+              <th data-i18n="dth.pattern">pattern</th><th data-i18n="dth.action">azione</th><th data-i18n="dth.ua">user-agent</th>
+              <th data-i18n="dth.set">set headers</th><th data-i18n="dth.strip">strip headers</th><th data-i18n="dth.note">note</th><th></th>
             </tr></thead>
             <tbody></tbody>
           </table>
@@ -112,36 +116,36 @@
       <section id="tab-uscita" class="tab hidden">
         <div class="panel">
           <div class="form-grid">
-            <label><span class="eyebrow">fingerprint TLS</span>
+            <label><span class="eyebrow" data-i18n="egr.fp">fingerprint TLS</span>
               <select id="e-fingerprint"></select>
             </label>
-            <label><span class="eyebrow">user-agent unico</span>
-              <input type="text" id="e-ua" placeholder="vuoto = passa l'originale">
+            <label><span class="eyebrow" data-i18n="egr.ua">user-agent unico</span>
+              <input type="text" id="e-ua" data-i18n-ph="egr.ua.ph" placeholder="vuoto = passa l'originale">
             </label>
-            <label><span class="eyebrow">azione di default</span>
+            <label><span class="eyebrow" data-i18n="egr.default">azione di default</span>
               <select id="e-default">
                 <option value="allow">allow</option>
                 <option value="block">block</option>
               </select>
             </label>
-            <label><span class="eyebrow">reti private</span>
-              <span class="check"><input type="checkbox" id="e-allowprivate"> consenti IP privati/loopback/link-local (anti-SSRF off)</span>
+            <label><span class="eyebrow" data-i18n="egr.private">reti private</span>
+              <span class="check"><input type="checkbox" id="e-allowprivate"> <span data-i18n="egr.private.desc">consenti IP privati/loopback/link-local (anti-SSRF off)</span></span>
             </label>
-            <label><span class="eyebrow">anti-fingerprint client</span>
-              <span class="check"><input type="checkbox" id="e-normalize"> rimuovi Client Hints, Sec-Fetch, Accept-Language, DNT… — rende i client indistinguibili</span>
+            <label><span class="eyebrow" data-i18n="egr.norm">anti-fingerprint client</span>
+              <span class="check"><input type="checkbox" id="e-normalize"> <span data-i18n="egr.norm.desc">rimuovi Client Hints, Sec-Fetch, Accept-Language, DNT… — rende i client indistinguibili</span></span>
             </label>
-            <label><span class="eyebrow">cattura body (debug)</span>
-              <span class="check"><input type="checkbox" id="e-capture"> registra i primi 32KB di body richiesta/risposta (visibili nel dettaglio)</span>
+            <label><span class="eyebrow" data-i18n="egr.capture">cattura body (debug)</span>
+              <span class="check"><input type="checkbox" id="e-capture"> <span data-i18n="egr.capture.desc">registra i primi 32KB di body richiesta/risposta (visibili nel dettaglio)</span></span>
             </label>
-            <label><span class="eyebrow">set headers globali</span>
+            <label><span class="eyebrow" data-i18n="egr.set">set headers globali</span>
               <textarea id="e-set" rows="4" placeholder="Nome: valore"></textarea>
             </label>
-            <label><span class="eyebrow">strip headers globali</span>
+            <label><span class="eyebrow" data-i18n="egr.strip">strip headers globali</span>
               <textarea id="e-strip" rows="4" placeholder="X-Forwarded-For"></textarea>
             </label>
           </div>
           <div class="toolbar">
-            <button id="save-egress" class="primary">salva</button>
+            <button id="save-egress" class="primary" data-i18n="btn.save">salva</button>
             <span id="egress-status" class="note"></span>
           </div>
         </div>
@@ -150,34 +154,34 @@
       <!-- CLIENT -->
       <section id="tab-client" class="tab hidden">
         <div class="setup">
-          <h3>Installazione locale</h3>
-          <p>Un installer per il tuo sistema: scarica il client, installa la MITM CA, imposta il proxy e avvia poxy ad ogni login. Windows, macOS e Linux.</p>
+          <h3 data-i18n="setup.title">Installazione locale</h3>
+          <p data-i18n="setup.desc">Un installer per il tuo sistema: scarica il client, installa la MITM CA, imposta il proxy e avvia poxy ad ogni login. Windows, macOS e Linux.</p>
           <div class="row">
-            <input type="text" id="setup-name" class="inline" placeholder="nome-macchina" value="miopc">
+            <input type="text" id="setup-name" class="inline" data-i18n-ph="setup.name" placeholder="nome-macchina" value="miopc">
             <select id="setup-os" class="inline">
               <option value="windows">Windows</option>
               <option value="macos">macOS</option>
               <option value="linux">Linux</option>
             </select>
-            <button id="gen-setup" class="primary">scarica installer</button>
+            <button id="gen-setup" class="primary" data-i18n="setup.download">scarica installer</button>
           </div>
           <ol>
-            <li>Scegli il sistema e scarica l'installer.</li>
-            <li><b>Windows</b>: <b>doppio click</b> sul file <code>.cmd</code> scaricato → conferma UAC. &nbsp;<b>macOS / Linux</b>: <code>bash ~/Downloads/poxy-setup-*.sh</code></li>
-            <li>Fatto: proxy su <code>127.0.0.1:8888</code>, CA fidata, avvio automatico ad ogni login.</li>
+            <li data-i18n="setup.step1">Scegli il sistema e scarica l'installer.</li>
+            <li data-i18n-html="setup.step2"><b>Windows</b>: <b>doppio click</b> sul file <code>.cmd</code> scaricato → conferma UAC. &nbsp;<b>macOS / Linux</b>: <code>bash ~/Downloads/poxy-setup-*.sh</code></li>
+            <li data-i18n-html="setup.step3">Fatto: proxy su <code>127.0.0.1:8888</code>, CA fidata, avvio automatico ad ogni login.</li>
           </ol>
-          <p class="hint" style="margin:12px 0 0">Rimuovere poxy da questa macchina: <a href="#" id="gen-uninstall">scarica disinstallatore</a> (per l'OS selezionato sopra).</p>
+          <p class="hint" style="margin:12px 0 0" data-i18n-html="setup.uninstall">Rimuovere poxy da questa macchina: <a href="#" id="gen-uninstall">scarica disinstallatore</a> (per l'OS selezionato sopra).</p>
         </div>
 
         <div class="toolbar">
-          <a class="btn" href="/ca.crt">scarica solo la MITM CA</a>
+          <a class="btn" href="/ca.crt" data-i18n="client.ca">scarica solo la MITM CA</a>
           <input type="text" id="bundle-name" class="inline" placeholder="nome-client" value="client">
-          <button id="gen-bundle">scarica solo il bundle</button>
+          <button id="gen-bundle" data-i18n="client.bundle">scarica solo il bundle</button>
         </div>
-        <p class="hint">Manuale: installa la MITM CA come <em>trusted root</em>, poi <code>poxy-client -bundle poxy-&lt;nome&gt;.json</code>.</p>
+        <p class="hint" data-i18n-html="client.manual">Manuale: installa la MITM CA come <em>trusted root</em>, poi <code>poxy-client -bundle poxy-&lt;nome&gt;.json</code>.</p>
         <div class="table-wrap">
           <table id="clients">
-            <thead><tr><th>id</th><th>indirizzo</th><th>dal</th><th>stream</th><th>richieste</th></tr></thead>
+            <thead><tr><th>id</th><th data-i18n="cth.addr">indirizzo</th><th data-i18n="cth.since">dal</th><th>stream</th><th data-i18n="cth.req">richieste</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -187,11 +191,11 @@
       <section id="tab-impostazioni" class="tab hidden">
         <div class="panel narrow">
           <div class="form-grid narrow">
-            <label><span class="eyebrow">password attuale</span><input type="password" id="pw-old"></label>
-            <label><span class="eyebrow">nuova password</span><input type="password" id="pw-new"></label>
+            <label><span class="eyebrow" data-i18n="set.old">password attuale</span><input type="password" id="pw-old"></label>
+            <label><span class="eyebrow" data-i18n="set.new">nuova password</span><input type="password" id="pw-new"></label>
           </div>
           <div class="toolbar">
-            <button id="save-pw" class="primary">cambia password</button>
+            <button id="save-pw" class="primary" data-i18n="set.change">cambia password</button>
             <span id="pw-status" class="note"></span>
           </div>
         </div>
@@ -199,6 +203,7 @@
     </main>
   </div>
 
+  <script src="i18n.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

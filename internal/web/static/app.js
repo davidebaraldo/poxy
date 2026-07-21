@@ -23,7 +23,7 @@ function humanBytes(n) {
   do { n /= 1024; i++; } while (n >= 1024 && i < u.length - 1);
   return n.toFixed(1) + " " + u[i];
 }
-function fmtTime(iso) { return new Date(iso).toLocaleTimeString("it-IT"); }
+function fmtTime(iso) { return new Date(iso).toLocaleTimeString(); }
 function stCls(code, blocked) {
   if (blocked) return "st-blocked";
   return "st-" + Math.floor(code / 100);
@@ -54,7 +54,7 @@ $("#logout").addEventListener("click", async () => {
 $$("nav button").forEach((b) => b.addEventListener("click", () => {
   $$("nav button").forEach((x) => x.classList.remove("active"));
   b.classList.add("active");
-  $$(".tab").forEach((t) => t.classList.add("hidden"));
+  $$(".tab").forEach((el) => el.classList.add("hidden"));
   $("#tab-" + b.dataset.tab).classList.remove("hidden");
   if (b.dataset.tab === "domini") loadDomains();
   if (b.dataset.tab === "uscita") loadEgress();
@@ -99,8 +99,8 @@ async function loadStats() {
 function startSSE() {
   if (sse) sse.close();
   sse = new EventSource("/api/traffic/live");
-  sse.onopen = () => { $("#live-dot").classList.add("on"); const s = $("#hdr-state"); if (s) s.textContent = "egress attivo"; };
-  sse.onerror = () => { $("#live-dot").classList.remove("on"); const s = $("#hdr-state"); if (s) s.textContent = "riconnessione…"; };
+  sse.onopen = () => { $("#live-dot").classList.add("on"); const s = $("#hdr-state"); if (s) s.textContent = t("status.active"); };
+  sse.onerror = () => { $("#live-dot").classList.remove("on"); const s = $("#hdr-state"); if (s) s.textContent = t("status.reconnect"); };
   sse.onmessage = (ev) => {
     try { addRow(JSON.parse(ev.data), true); } catch (_) {}
   };
@@ -138,43 +138,43 @@ function addRow(e, prepend) {
 
 function renderDetail(e) {
   const fields = [
-    ["id", e.id],
-    ["ora", new Date(e.time).toLocaleString("it-IT")],
-    ["client id", e.clientId],
-    ["client addr", e.clientAddr],
-    ["metodo", e.method],
-    ["url", `${e.scheme}://${e.host}${e.path}`],
-    ["stato", e.blocked ? "BLOCK " + e.status : e.status],
-    ["fingerprint", e.fingerprint],
-    ["regola dominio", e.matchedRule || "-"],
-    ["user-agent (uscita)", e.userAgent || "-"],
-    ["byte richiesta", e.reqBytes],
-    ["byte risposta", e.respBytes],
-    ["durata", e.durationMs + " ms"],
-    ["bloccato", e.blocked],
-    ["errore", e.error || "-"],
+    ["d.id", e.id],
+    ["d.time", new Date(e.time).toLocaleString()],
+    ["d.clientId", e.clientId],
+    ["d.clientAddr", e.clientAddr],
+    ["d.method", e.method],
+    ["d.url", `${e.scheme}://${e.host}${e.path}`],
+    ["d.status", e.blocked ? "BLOCK " + e.status : e.status],
+    ["d.fp", e.fingerprint],
+    ["d.rule", e.matchedRule || "-"],
+    ["d.ua", e.userAgent || "-"],
+    ["d.reqBytes", e.reqBytes],
+    ["d.respBytes", e.respBytes],
+    ["d.duration", e.durationMs + " ms"],
+    ["d.blocked", e.blocked],
+    ["d.error", e.error || "-"],
   ];
   const kv = fields
-    .map(([k, v]) => `<div class="kv"><span>${esc(k)}</span><code>${esc(v)}</code></div>`)
+    .map(([k, v]) => `<div class="kv"><span>${esc(t(k))}</span><code>${esc(v)}</code></div>`)
     .join("");
   const bodies = (e.reqBody || e.respBody)
     ? `<div class="hdrs">
-        <div><h4>request body</h4>${renderBody(e.reqBody, e.reqBodyTruncated)}</div>
-        <div><h4>response body</h4>${renderBody(e.respBody, e.respBodyTruncated)}</div>
+        <div><h4>${esc(t("detail.reqBody"))}</h4>${renderBody(e.reqBody, e.reqBodyTruncated)}</div>
+        <div><h4>${esc(t("detail.respBody"))}</h4>${renderBody(e.respBody, e.respBodyTruncated)}</div>
       </div>`
     : "";
   return `<div class="detail">
     <div class="kvgrid">${kv}</div>
     <div class="hdrs">
-      <div><h4>request headers (verso destinazione)</h4>${renderHeaders(e.reqHeaders)}</div>
-      <div><h4>response headers (dalla destinazione)</h4>${renderHeaders(e.respHeaders)}</div>
+      <div><h4>${esc(t("detail.reqHeaders"))}</h4>${renderHeaders(e.reqHeaders)}</div>
+      <div><h4>${esc(t("detail.respHeaders"))}</h4>${renderHeaders(e.respHeaders)}</div>
     </div>
     ${bodies}
   </div>`;
 }
 
 function renderBody(b64, trunc) {
-  if (!b64) return '<div class="muted small">vuoto</div>';
+  if (!b64) return `<div class="muted small">${esc(t("body.empty"))}</div>`;
   let bytes;
   try {
     const bin = atob(b64);
@@ -188,19 +188,19 @@ function renderBody(b64, trunc) {
     if (c < 9 || (c > 13 && c < 32) || c === 0xfffd) ctrl++;
   }
   if (ctrl > text.length * 0.02) {
-    return `<div class="muted small">binario (${bytes.length} byte)${trunc ? " · troncato" : ""}</div>`;
+    return `<div class="muted small">${esc(t("body.binary", { n: bytes.length }))}</div>`;
   }
   let out = text;
   try { out = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
-  const note = trunc ? '<div class="muted small">… troncato a 32KB</div>' : "";
+  const note = trunc ? `<div class="muted small">${esc(t("body.truncated"))}</div>` : "";
   return `<pre class="body">${esc(out)}</pre>${note}`;
 }
 
 function renderHeaders(h) {
   const keys = h ? Object.keys(h).sort() : [];
-  if (!keys.length) return '<div class="muted small">nessuno</div>';
+  if (!keys.length) return `<div class="muted small">${esc(t("body.none"))}</div>`;
   const rows = keys
-    .map((k) => h[k].map((v) => `<tr><td>${esc(k)}</td><td class="hval" title="click per espandere">${esc(v)}</td></tr>`).join(""))
+    .map((k) => h[k].map((v) => `<tr><td>${esc(k)}</td><td class="hval" title="${esc(t("hval.expand"))}">${esc(v)}</td></tr>`).join(""))
     .join("");
   return `<table class="hdr">${rows}</table>`;
 }
@@ -249,7 +249,7 @@ $("#save-egress").addEventListener("click", async () => {
   };
   try {
     await api("PUT", "/api/config", body);
-    flash("#egress-status", "salvato");
+    flash("#egress-status", t("msg.saved"));
   } catch (err) { flash("#egress-status", err.message, true); }
 });
 
@@ -293,7 +293,7 @@ $("#save-domains").addEventListener("click", async () => {
   })).filter((r) => r.pattern !== "");
   try {
     await api("PUT", "/api/domains", rules);
-    flash("#domini-status", "salvato");
+    flash("#domini-status", t("msg.saved"));
   } catch (err) { flash("#domini-status", err.message, true); }
 });
 
@@ -331,7 +331,7 @@ $("#save-pw").addEventListener("click", async () => {
   try {
     await api("POST", "/api/password", { old: $("#pw-old").value, new: $("#pw-new").value });
     $("#pw-old").value = ""; $("#pw-new").value = "";
-    flash("#pw-status", "password aggiornata");
+    flash("#pw-status", t("msg.pwUpdated"));
   } catch (err) { flash("#pw-status", err.message, true); }
 });
 
@@ -367,6 +367,8 @@ function flash(sel, msg, isErr) {
 function boot() { bootDashboard(); }
 
 (async function init() {
+  applyI18n();
+  initLangSelector();
   try {
     const s = await api("GET", "/api/session");
     if (s.authenticated) { showApp(); boot(); }
