@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf16"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -412,7 +413,7 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 	var tmpl, filename string
 	switch osKind {
 	case "windows":
-		tmpl, filename = setupWindows, "poxy-setup-"+name+".ps1"
+		tmpl, filename = setupWindows, "poxy-setup-"+name+".cmd"
 	case "macos", "darwin":
 		tmpl, filename = setupMacos, "poxy-setup-"+name+".sh"
 	case "linux":
@@ -442,9 +443,43 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 		"__BASE__", scheme+"://"+r.Host,
 	).Replace(tmpl)
 
+	// Su Windows: doppio-click .cmd che si auto-eleva e lancia il PowerShell
+	// (con Bypass) senza far scrivere comandi all'utente.
+	if osKind == "windows" {
+		script = wrapWindowsCmd(script)
+	}
+
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename=%q`, filename))
 	w.Write([]byte(script))
+}
+
+// wrapWindowsCmd incapsula lo script PowerShell in un .cmd che si auto-eleva ad
+// amministratore e lo esegue via -EncodedCommand (immune all'execution policy).
+func wrapWindowsCmd(ps string) string {
+	enc := psEncodedCommand(ps)
+	return "@echo off\r\n" +
+		"net session >nul 2>&1\r\n" +
+		"if %errorlevel% neq 0 (\r\n" +
+		"  powershell -NoProfile -Command \"Start-Process -FilePath '%~f0' -Verb RunAs\"\r\n" +
+		"  exit /b\r\n" +
+		")\r\n" +
+		"powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand " + enc + "\r\n" +
+		"echo.\r\n" +
+		"echo Installazione completata. Premi un tasto per chiudere.\r\n" +
+		"pause >nul\r\n"
+}
+
+// psEncodedCommand codifica uno script PowerShell nel formato -EncodedCommand
+// (base64 di UTF-16LE).
+func psEncodedCommand(script string) string {
+	u := utf16.Encode([]rune(script))
+	buf := make([]byte, len(u)*2)
+	for i, r := range u {
+		buf[i*2] = byte(r)
+		buf[i*2+1] = byte(r >> 8)
+	}
+	return base64.StdEncoding.EncodeToString(buf)
 }
 
 var clientBinaryRe = regexp.MustCompile(`^poxy-client-(windows|darwin|linux)-(amd64|arm64)(\.exe)?$`)
@@ -481,19 +516,8 @@ func binaryPath(name string) string {
 	return ""
 }
 
-const setupWindows = `# poxy - installer locale (Windows).
-# Esegui:  powershell -ExecutionPolicy Bypass -File poxy-setup-*.ps1
+const setupWindows = `# poxy - installer locale (Windows). Eseguito dal wrapper .cmd (già come admin).
 $ErrorActionPreference = "Stop"
-
-# auto-elevazione ad Amministratore (serve per installare la MITM CA)
-$pr = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
-if (-not $pr.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)) {
-  Write-Host "Richiedo privilegi di amministratore..."
-  $q = [char]34
-  Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile","-ExecutionPolicy","Bypass","-File","$q$PSCommandPath$q"
-  exit
-}
-
 Write-Host "Installazione poxy client..."
 
 $dir = "$env:LOCALAPPDATA\poxy"
