@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>poxy — control</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- LOGIN -->
+  <div id="login" class="login-overlay">
+    <form id="login-form" class="login-box">
+      <svg viewBox="0 0 44 26" class="mark mark-lg" aria-hidden="true">
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#8b7bff"/><stop offset="1" stop-color="#2ee6d6"/>
+        </linearGradient></defs>
+        <path d="M8 6 L30 13 M8 13 L30 13 M8 20 L30 13" stroke="url(#lg)" stroke-width="1.4" opacity=".55"/>
+        <circle cx="8" cy="6" r="2.6" fill="#8b7bff"/>
+        <circle cx="8" cy="13" r="2.6" fill="#8b7bff"/>
+        <circle cx="8" cy="20" r="2.6" fill="#8b7bff"/>
+        <circle cx="32" cy="13" r="5.4" fill="url(#lg)"/>
+      </svg>
+      <h1 class="wordmark">poxy</h1>
+      <p class="tagline">traffico anonimo — un'unica identità</p>
+      <input type="password" id="login-password" placeholder="password" autocomplete="current-password" required>
+      <button type="submit">accedi</button>
+      <div id="login-error" class="error"></div>
+    </form>
+  </div>
+
+  <!-- APP -->
+  <div id="app" class="hidden">
+    <header class="topbar">
+      <div class="brand">
+        <svg viewBox="0 0 44 26" class="mark" aria-hidden="true">
+          <path d="M8 6 L30 13 M8 13 L30 13 M8 20 L30 13" stroke="url(#lg)" stroke-width="1.4" opacity=".55"/>
+          <circle cx="8" cy="6" r="2.6" fill="#8b7bff"/>
+          <circle cx="8" cy="13" r="2.6" fill="#8b7bff"/>
+          <circle cx="8" cy="20" r="2.6" fill="#8b7bff"/>
+          <circle cx="32" cy="13" r="5.4" fill="url(#lg)"/>
+        </svg>
+        <span class="wordmark">poxy</span>
+      </div>
+
+      <div class="status">
+        <span class="live"><i id="live-dot" class="dot"></i><span id="hdr-state">connessione…</span></span>
+        <span class="vr"></span>
+        <span class="readout"><b id="hdr-clients">0</b> client</span>
+        <span class="conv" aria-hidden="true">→</span>
+        <span class="readout accent">1 identità</span>
+        <span class="chip" id="hdr-fp">—</span>
+      </div>
+
+      <button id="logout" class="ghost-btn">esci</button>
+    </header>
+
+    <nav class="tabs">
+      <button data-tab="dashboard" class="active">dashboard</button>
+      <button data-tab="domini">domini</button>
+      <button data-tab="uscita">uscita</button>
+      <button data-tab="client">client</button>
+      <button data-tab="impostazioni">impostazioni</button>
+    </nav>
+
+    <main>
+      <!-- DASHBOARD -->
+      <section id="tab-dashboard" class="tab">
+        <div class="stats">
+          <div class="stat"><span class="eyebrow">richieste</span><span class="num" id="s-total">0</span></div>
+          <div class="stat block"><span class="eyebrow">bloccate</span><span class="num" id="s-blocked">0</span></div>
+          <div class="stat err"><span class="eyebrow">errori</span><span class="num" id="s-errors">0</span></div>
+          <div class="stat live-stat"><span class="eyebrow">client</span><span class="num" id="s-connected">0</span></div>
+          <div class="stat"><span class="eyebrow">ingresso ↓</span><span class="num sm" id="s-in">0</span></div>
+          <div class="stat"><span class="eyebrow">uscita ↑</span><span class="num sm" id="s-out">0</span></div>
+        </div>
+
+        <div class="feed-head">
+          <span class="eyebrow">feed traffico</span>
+          <span class="hint">clicca una riga per i dettagli</span>
+          <button id="clear-traffic" class="ghost-btn sm">pulisci</button>
+        </div>
+        <div class="table-wrap">
+          <table id="traffic">
+            <thead><tr>
+              <th>ora</th><th>client</th><th>metodo</th><th>host</th><th>path</th>
+              <th>stato</th><th>fp</th><th>regola</th><th>↑</th><th>↓</th><th>ms</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- DOMINI -->
+      <section id="tab-domini" class="tab hidden">
+        <div class="toolbar">
+          <button id="add-domain">+ dominio</button>
+          <button id="save-domains" class="primary">salva</button>
+          <span id="domini-status" class="note"></span>
+        </div>
+        <p class="hint">pattern: <code>example.com</code> (esatto) · <code>*.example.com</code> (sottodomini) · <code>*</code> (tutti). Azione vuota = eredita default.</p>
+        <div class="table-wrap">
+          <table id="domains">
+            <thead><tr>
+              <th>pattern</th><th>azione</th><th>user-agent</th><th>set headers</th><th>strip headers</th><th>note</th><th></th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- USCITA -->
+      <section id="tab-uscita" class="tab hidden">
+        <div class="panel">
+          <div class="form-grid">
+            <label><span class="eyebrow">fingerprint TLS</span>
+              <select id="e-fingerprint"></select>
+            </label>
+            <label><span class="eyebrow">user-agent unico</span>
+              <input type="text" id="e-ua" placeholder="vuoto = passa l'originale">
+            </label>
+            <label><span class="eyebrow">azione di default</span>
+              <select id="e-default">
+                <option value="allow">allow</option>
+                <option value="block">block</option>
+              </select>
+            </label>
+            <label><span class="eyebrow">reti private</span>
+              <span class="check"><input type="checkbox" id="e-allowprivate"> consenti IP privati/loopback/link-local (anti-SSRF off)</span>
+            </label>
+            <label><span class="eyebrow">anti-fingerprint client</span>
+              <span class="check"><input type="checkbox" id="e-normalize"> rimuovi Client Hints, Sec-Fetch, Accept-Language, DNT… — rende i client indistinguibili</span>
+            </label>
+            <label><span class="eyebrow">set headers globali</span>
+              <textarea id="e-set" rows="4" placeholder="Nome: valore"></textarea>
+            </label>
+            <label><span class="eyebrow">strip headers globali</span>
+              <textarea id="e-strip" rows="4" placeholder="X-Forwarded-For"></textarea>
+            </label>
+          </div>
+          <div class="toolbar">
+            <button id="save-egress" class="primary">salva</button>
+            <span id="egress-status" class="note"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- CLIENT -->
+      <section id="tab-client" class="tab hidden">
+        <div class="setup">
+          <h3>Installazione locale</h3>
+          <p>Un solo installer PowerShell: scarica il client, installa la MITM CA, imposta proxy + trust e avvia poxy all'avvio. Esegui il file come Amministratore.</p>
+          <div class="row">
+            <input type="text" id="setup-name" class="inline" placeholder="nome-macchina" value="miopc">
+            <button id="gen-setup" class="primary">scarica installer (.ps1)</button>
+          </div>
+          <ol>
+            <li>Scarica l'installer qui sopra.</li>
+            <li>Tasto destro → <em>Esegui con PowerShell</em> (come Amministratore).</li>
+            <li>Fatto: proxy attivo su <code>127.0.0.1:8888</code>, CA fidata, avvio automatico.</li>
+          </ol>
+        </div>
+
+        <div class="toolbar">
+          <a class="btn" href="/ca.crt">scarica solo la MITM CA</a>
+          <input type="text" id="bundle-name" class="inline" placeholder="nome-client" value="client">
+          <button id="gen-bundle">scarica solo il bundle</button>
+        </div>
+        <p class="hint">Manuale: installa la MITM CA come <em>trusted root</em>, poi <code>poxy-client -bundle poxy-&lt;nome&gt;.json</code>.</p>
+        <div class="table-wrap">
+          <table id="clients">
+            <thead><tr><th>id</th><th>indirizzo</th><th>dal</th><th>stream</th><th>richieste</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- IMPOSTAZIONI -->
+      <section id="tab-impostazioni" class="tab hidden">
+        <div class="panel narrow">
+          <div class="form-grid narrow">
+            <label><span class="eyebrow">password attuale</span><input type="password" id="pw-old"></label>
+            <label><span class="eyebrow">nuova password</span><input type="password" id="pw-new"></label>
+          </div>
+          <div class="toolbar">
+            <button id="save-pw" class="primary">cambia password</button>
+            <span id="pw-status" class="note"></span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

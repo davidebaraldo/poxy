@@ -1,0 +1,19 @@
+# binari compilati
+*.exe
+/dist/
+/poxy-server
+/poxy-client
+
+# dati runtime (CA generate, config, sessioni)
+/poxy-data/
+
+# artefatti locali / di test
+cj.txt
+*.out
+*.err
+poxy-*.json
+start-poxy.ps1
+
+# temporanei
+*~
+*.exe~

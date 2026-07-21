@@ -1,0 +1,11 @@
+.git/
+.github/
+dist/
+poxy-data/
+*.exe
+*.out
+*.err
+cj.txt
+poxy-*.json
+start-poxy.ps1
+README.md

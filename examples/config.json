@@ -1,0 +1,41 @@
+{
+  "egress": {
+    "fingerprint": "chrome",
+    "userAgent": "",
+    "setHeaders": {},
+    "stripHeaders": ["X-Forwarded-For", "Forwarded", "Via", "X-Real-IP", "X-Client-IP"],
+    "defaultAction": "allow",
+    "allowPrivate": false
+  },
+  "domains": [
+    { "pattern": "anthropic.com", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "*.anthropic.com", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "claude.ai", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "*.claude.ai", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "claude.com", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "*.claude.com", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "claudeusercontent.com", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "*.claudeusercontent.com", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "storage.googleapis.com", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "*.storage.googleapis.com", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "raw.githubusercontent.com", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "*.raw.githubusercontent.com", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "datadoghq.com", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "*.datadoghq.com", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "browser-intake-us5-datadoghq.com", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "*.browser-intake-us5-datadoghq.com", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "brew.sh", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "*.brew.sh", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "npmjs.org", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "*.npmjs.org", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "npmjs.com", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "*.npmjs.com", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "sentry.io", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "*.sentry.io", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "statsig.com", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "*.statsig.com", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "statsigapi.net", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" },
+    { "pattern": "*.statsigapi.net", "action": "allow", "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "setHeaders": {}, "stripHeaders": [], "note": "" }
+  ],
+  "web": { "passwordHash": "" }
+}
