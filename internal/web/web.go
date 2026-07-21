@@ -13,7 +13,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -109,9 +111,9 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /api/bundle", s.auth(s.handleBundle))
 	mux.Handle("GET /api/setup", s.auth(s.handleSetup))
 
-	// Download del binario client: pubblico (non è un segreto; il bundle con la
+	// Download dei binari client: pubblico (non è un segreto; il bundle con la
 	// chiave privata è invece incorporato nell'installer protetto da sessione).
-	mux.HandleFunc("GET /download/poxy-client.exe", s.handleDownloadClient)
+	mux.HandleFunc("GET /download/", s.handleDownloadBinary)
 
 	// SPA statica.
 	sub, _ := fs.Sub(staticFS, "static")
@@ -395,13 +397,31 @@ func (s *Server) handleBundle(w http.ResponseWriter, r *http.Request) {
 	enc.Encode(bundle)
 }
 
-// handleSetup genera un installer PowerShell (Windows) con bundle e MITM CA
-// incorporati: scarica il client, installa la CA, imposta proxy e avvio automatico.
+// handleSetup genera un installer per l'OS richiesto (?os=windows|macos|linux)
+// con bundle e MITM CA incorporati: scarica il client, installa la CA, imposta
+// il proxy e configura l'avvio automatico.
 func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	if name == "" {
 		name = "client"
 	}
+	osKind := r.URL.Query().Get("os")
+	if osKind == "" {
+		osKind = "windows"
+	}
+	var tmpl, filename string
+	switch osKind {
+	case "windows":
+		tmpl, filename = setupWindows, "poxy-setup-"+name+".ps1"
+	case "macos", "darwin":
+		tmpl, filename = setupMacos, "poxy-setup-"+name+".sh"
+	case "linux":
+		tmpl, filename = setupLinux, "poxy-setup-"+name+".sh"
+	default:
+		http.Error(w, "os non supportato (windows|macos|linux)", http.StatusBadRequest)
+		return
+	}
+
 	bundle, err := s.ps.IssueBundle(name)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -420,31 +440,39 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 		"__BUNDLE__", base64.StdEncoding.EncodeToString(bundleJSON),
 		"__CA__", base64.StdEncoding.EncodeToString(s.ps.MITMCAPEM()),
 		"__BASE__", scheme+"://"+r.Host,
-	).Replace(setupScript)
+	).Replace(tmpl)
 
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="poxy-setup-%s.ps1"`, name))
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename=%q`, filename))
 	w.Write([]byte(script))
 }
 
-// handleDownloadClient serve il binario poxy-client.exe se presente sul server.
-func (s *Server) handleDownloadClient(w http.ResponseWriter, r *http.Request) {
-	p := clientBinaryPath()
+var clientBinaryRe = regexp.MustCompile(`^poxy-client-(windows|darwin|linux)-(amd64|arm64)(\.exe)?$`)
+
+// handleDownloadBinary serve un binario client (poxy-client-<os>-<arch>[.exe])
+// presente accanto al server. Nome validato contro traversal.
+func (s *Server) handleDownloadBinary(w http.ResponseWriter, r *http.Request) {
+	name := path.Base(r.URL.Path)
+	if name != "poxy-client.exe" && !clientBinaryRe.MatchString(name) {
+		http.Error(w, "non trovato", http.StatusNotFound)
+		return
+	}
+	p := binaryPath(name)
 	if p == "" {
-		http.Error(w, "binario client non disponibile sul server (metti poxy-client.exe accanto a poxy-server.exe)", http.StatusNotFound)
+		http.Error(w, "binario "+name+" non disponibile sul server", http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", `attachment; filename="poxy-client.exe"`)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename=%q`, name))
 	http.ServeFile(w, r, p)
 }
 
-func clientBinaryPath() string {
+func binaryPath(name string) string {
 	var candidates []string
 	if exe, err := os.Executable(); err == nil {
-		candidates = append(candidates, filepath.Join(filepath.Dir(exe), "poxy-client.exe"))
+		candidates = append(candidates, filepath.Join(filepath.Dir(exe), name))
 	}
-	candidates = append(candidates, "poxy-client.exe")
+	candidates = append(candidates, name)
 	for _, c := range candidates {
 		if fi, err := os.Stat(c); err == nil && !fi.IsDir() {
 			return c
@@ -453,7 +481,7 @@ func clientBinaryPath() string {
 	return ""
 }
 
-const setupScript = `# poxy - installer locale (Windows). Esegui come Amministratore.
+const setupWindows = `# poxy - installer locale (Windows). Esegui come Amministratore.
 $ErrorActionPreference = "Stop"
 Write-Host "Installazione poxy client..."
 
@@ -464,9 +492,10 @@ New-Item -ItemType Directory -Force -Path $dir | Out-Null
 [IO.File]::WriteAllBytes("$dir\bundle.json", [Convert]::FromBase64String("__BUNDLE__"))
 [IO.File]::WriteAllBytes("$dir\mitm-ca.crt", [Convert]::FromBase64String("__CA__"))
 
-# scarica il client
-Write-Host "Scarico poxy-client..."
-Invoke-WebRequest -Uri "__BASE__/download/poxy-client.exe" -OutFile "$dir\poxy-client.exe"
+# scarica il client (arch corretta)
+$arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "amd64" }
+Write-Host "Scarico poxy-client ($arch)..."
+Invoke-WebRequest -Uri "__BASE__/download/poxy-client-windows-$arch.exe" -OutFile "$dir\poxy-client.exe"
 
 # fidati della MITM CA (store Root di Windows)
 Write-Host "Installo la MITM CA nello store Root..."
@@ -499,6 +528,123 @@ Write-Host ""
 Write-Host "poxy installato in $dir"
 Write-Host "Proxy attivo su 127.0.0.1:8888 - avvio automatico configurato."
 Write-Host "Riapri terminali e app per applicare le variabili d'ambiente."
+`
+
+const setupMacos = `#!/bin/bash
+# poxy - installer locale (macOS). Esegui: bash poxy-setup-*.sh
+set -e
+echo "Installazione poxy client..."
+
+DIR="$HOME/.poxy"
+mkdir -p "$DIR"
+
+# bundle + CA incorporati
+printf '%s' "__BUNDLE__" | base64 --decode > "$DIR/bundle.json"
+printf '%s' "__CA__" | base64 --decode > "$DIR/mitm-ca.crt"
+
+# scarica il client (arch corretta)
+ARCH=amd64
+if [ "$(uname -m)" = "arm64" ]; then ARCH=arm64; fi
+echo "Scarico poxy-client ($ARCH)..."
+curl -fsSL "__BASE__/download/poxy-client-darwin-$ARCH" -o "$DIR/poxy-client"
+chmod +x "$DIR/poxy-client"
+
+# fidati della MITM CA (login keychain)
+security add-trusted-cert -d -r trustRoot -k "$HOME/Library/Keychains/login.keychain-db" "$DIR/mitm-ca.crt" 2>/dev/null || \
+  security add-trusted-cert -r trustRoot -k "$HOME/Library/Keychains/login.keychain" "$DIR/mitm-ca.crt" 2>/dev/null || \
+  echo "NOTA: importa manualmente $DIR/mitm-ca.crt in Accesso Portachiavi (Sempre fidato)."
+
+# variabili per Node / Claude Code / CLI (zsh + bash)
+add_env() {
+  f="$1"; [ -f "$f" ] || touch "$f"
+  if ! grep -q "POXY-ENV" "$f"; then
+    printf '\n# POXY-ENV\nexport NODE_EXTRA_CA_CERTS="%s/mitm-ca.crt"\nexport HTTPS_PROXY="http://127.0.0.1:8888"\nexport HTTP_PROXY="http://127.0.0.1:8888"\nexport NO_PROXY="localhost,127.0.0.1"\n' "$DIR" >> "$f"
+  fi
+}
+add_env "$HOME/.zprofile"
+add_env "$HOME/.bash_profile"
+
+# avvio automatico (LaunchAgent)
+mkdir -p "$HOME/Library/LaunchAgents"
+PLIST="$HOME/Library/LaunchAgents/com.poxy.client.plist"
+cat > "$PLIST" <<PLISTEOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.poxy.client</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$DIR/poxy-client</string>
+    <string>-bundle</string><string>$DIR/bundle.json</string>
+    <string>-listen</string><string>127.0.0.1:8888</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+</dict></plist>
+PLISTEOF
+launchctl unload "$PLIST" 2>/dev/null || true
+launchctl load "$PLIST"
+
+echo ""
+echo "poxy installato in $DIR - proxy su 127.0.0.1:8888, avvio automatico attivo."
+echo "Riapri il terminale per applicare le variabili d'ambiente."
+`
+
+const setupLinux = `#!/bin/bash
+# poxy - installer locale (Linux). Esegui: bash poxy-setup-*.sh
+set -e
+echo "Installazione poxy client..."
+
+DIR="$HOME/.poxy"
+mkdir -p "$DIR"
+
+# bundle + CA incorporati
+printf '%s' "__BUNDLE__" | base64 --decode > "$DIR/bundle.json"
+printf '%s' "__CA__" | base64 --decode > "$DIR/mitm-ca.crt"
+
+# scarica il client (arch corretta)
+ARCH=amd64
+case "$(uname -m)" in aarch64|arm64) ARCH=arm64;; esac
+echo "Scarico poxy-client ($ARCH)..."
+curl -fsSL "__BASE__/download/poxy-client-linux-$ARCH" -o "$DIR/poxy-client"
+chmod +x "$DIR/poxy-client"
+
+# fidati della MITM CA a livello di sistema (se possibile)
+if command -v sudo >/dev/null 2>&1 && [ -d /usr/local/share/ca-certificates ]; then
+  sudo cp "$DIR/mitm-ca.crt" /usr/local/share/ca-certificates/poxy-mitm.crt 2>/dev/null && sudo update-ca-certificates 2>/dev/null || true
+fi
+
+# variabili per Node / Claude Code / CLI
+add_env() {
+  f="$1"; [ -f "$f" ] || touch "$f"
+  if ! grep -q "POXY-ENV" "$f"; then
+    printf '\n# POXY-ENV\nexport NODE_EXTRA_CA_CERTS="%s/mitm-ca.crt"\nexport HTTPS_PROXY="http://127.0.0.1:8888"\nexport HTTP_PROXY="http://127.0.0.1:8888"\nexport NO_PROXY="localhost,127.0.0.1"\n' "$DIR" >> "$f"
+  fi
+}
+add_env "$HOME/.profile"
+add_env "$HOME/.bashrc"
+
+# avvio automatico (systemd --user)
+mkdir -p "$HOME/.config/systemd/user"
+cat > "$HOME/.config/systemd/user/poxy-client.service" <<UNITEOF
+[Unit]
+Description=poxy client
+After=network-online.target
+
+[Service]
+ExecStart=$DIR/poxy-client -bundle $DIR/bundle.json -listen 127.0.0.1:8888
+Restart=always
+
+[Install]
+WantedBy=default.target
+UNITEOF
+systemctl --user daemon-reload 2>/dev/null || true
+systemctl --user enable --now poxy-client.service 2>/dev/null || true
+loginctl enable-linger "$USER" 2>/dev/null || true
+
+echo ""
+echo "poxy installato in $DIR - proxy su 127.0.0.1:8888, avvio automatico (systemd --user) attivo."
+echo "Riapri il terminale per applicare le variabili d'ambiente."
 `
 
 // --- Helper ---

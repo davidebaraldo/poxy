@@ -148,15 +148,20 @@
       <section id="tab-client" class="tab hidden">
         <div class="setup">
           <h3>Installazione locale</h3>
-          <p>Un solo installer PowerShell: scarica il client, installa la MITM CA, imposta proxy + trust e avvia poxy all'avvio. Esegui il file come Amministratore.</p>
+          <p>Un installer per il tuo sistema: scarica il client, installa la MITM CA, imposta il proxy e avvia poxy ad ogni login. Windows, macOS e Linux.</p>
           <div class="row">
             <input type="text" id="setup-name" class="inline" placeholder="nome-macchina" value="miopc">
-            <button id="gen-setup" class="primary">scarica installer (.ps1)</button>
+            <select id="setup-os" class="inline">
+              <option value="windows">Windows</option>
+              <option value="macos">macOS</option>
+              <option value="linux">Linux</option>
+            </select>
+            <button id="gen-setup" class="primary">scarica installer</button>
           </div>
           <ol>
-            <li>Scarica l'installer qui sopra.</li>
-            <li>Tasto destro → <em>Esegui con PowerShell</em> (come Amministratore).</li>
-            <li>Fatto: proxy attivo su <code>127.0.0.1:8888</code>, CA fidata, avvio automatico.</li>
+            <li>Scegli il sistema e scarica l'installer.</li>
+            <li><b>Windows</b>: tasto destro → <em>Esegui con PowerShell</em> (Amministratore). &nbsp;<b>macOS / Linux</b>: <code>bash ~/Downloads/poxy-setup-*.sh</code></li>
+            <li>Fatto: proxy su <code>127.0.0.1:8888</code>, CA fidata, avvio automatico ad ogni login.</li>
           </ol>
         </div>
 

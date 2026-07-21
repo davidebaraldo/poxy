@@ -279,7 +279,8 @@ $("#gen-bundle").addEventListener("click", () => {
 
 $("#gen-setup").addEventListener("click", () => {
   const name = encodeURIComponent($("#setup-name").value.trim() || "client");
-  window.location = "/api/setup?name=" + name;
+  const os = $("#setup-os").value;
+  window.location = "/api/setup?os=" + os + "&name=" + name;
 });
 
 // --- impostazioni ---

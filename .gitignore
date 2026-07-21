@@ -17,3 +17,5 @@ start-poxy.ps1
 # temporanei
 *~
 *.exe~
+poxy-client-*
+poxy-server-*

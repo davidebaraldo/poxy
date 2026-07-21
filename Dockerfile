@@ -5,17 +5,19 @@ RUN apk add --no-cache git
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-# server (linux) + client windows/amd64 servito dall'endpoint /download
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/poxy-server ./cmd/poxy-server \
- && CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o /out/poxy-client.exe ./cmd/poxy-client
+# server (linux) + tutti i client (win/mac/linux, amd64/arm64) serviti da /download
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/poxy-server ./cmd/poxy-server
+RUN set -e; for t in windows/amd64 windows/arm64 darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do \
+      os="${t%/*}"; arch="${t#*/}"; ext=""; [ "$os" = "windows" ] && ext=".exe"; \
+      CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags="-s -w" -o "/out/poxy-client-$os-$arch$ext" ./cmd/poxy-client; \
+    done
 
 # --- runtime ---
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates \
  && adduser -D -u 10001 poxy \
  && mkdir -p /data && chown poxy:poxy /data
-COPY --from=build /out/poxy-server /usr/local/bin/poxy-server
-COPY --from=build /out/poxy-client.exe /usr/local/bin/poxy-client.exe
+COPY --from=build /out/ /usr/local/bin/
 USER poxy
 WORKDIR /data
 VOLUME /data
