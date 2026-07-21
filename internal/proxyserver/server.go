@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"io"
 	"net"
 	"net/http"
@@ -183,6 +184,16 @@ func (s *Server) handleStream(stream net.Conn, entry *ClientEntry) {
 		s.handleTLS(bc, target, entry)
 	case tunnel.ModeHTTP:
 		s.handleHTTP(bc, target, entry)
+	case tunnel.ModeCtl:
+		s.handleCtl(bc, target)
+	}
+}
+
+// handleCtl serve il canale di controllo. "routes" -> lista dei pattern dominio
+// che il client deve instradare nel tunnel.
+func (s *Server) handleCtl(bc bufConn, target string) {
+	if target == "routes" {
+		_ = json.NewEncoder(bc).Encode(s.cfg.ProxiedPatterns())
 	}
 }
 

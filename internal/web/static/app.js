@@ -289,6 +289,11 @@ $("#gen-setup").addEventListener("click", () => {
   window.location = "/api/setup?os=" + os + "&name=" + name;
 });
 
+$("#gen-uninstall").addEventListener("click", (e) => {
+  e.preventDefault();
+  window.location = "/api/uninstall?os=" + $("#setup-os").value;
+});
+
 // --- impostazioni ---
 $("#save-pw").addEventListener("click", async () => {
   try {

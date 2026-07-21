@@ -13,6 +13,7 @@ import (
 const (
 	ModeTLS  = "tls"  // il client sta tunnelando un handshake TLS da intercettare
 	ModeHTTP = "http" // il client sta inoltrando una singola richiesta HTTP in chiaro
+	ModeCtl  = "ctl"  // canale di controllo (es. "ctl routes" -> lista domini proxati)
 )
 
 // ServerName è il ServerName atteso dal client nell'mTLS del tunnel. Il
@@ -38,7 +39,7 @@ func ReadPreamble(r *bufio.Reader) (mode, target string, err error) {
 		return "", "", fmt.Errorf("tunnel: preambolo malformato %q", line)
 	}
 	mode, target = parts[0], parts[1]
-	if mode != ModeTLS && mode != ModeHTTP {
+	if mode != ModeTLS && mode != ModeHTTP && mode != ModeCtl {
 		return "", "", fmt.Errorf("tunnel: modalità sconosciuta %q", mode)
 	}
 	return mode, target, nil

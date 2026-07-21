@@ -111,6 +111,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /ca.crt", s.auth(s.handleCA))
 	mux.Handle("GET /api/bundle", s.auth(s.handleBundle))
 	mux.Handle("GET /api/setup", s.auth(s.handleSetup))
+	mux.Handle("GET /api/uninstall", s.auth(s.handleUninstall))
 
 	// Download dei binari client: pubblico (non è un segreto; il bundle con la
 	// chiave privata è invece incorporato nell'installer protetto da sessione).
@@ -481,6 +482,111 @@ func psEncodedCommand(script string) string {
 	}
 	return base64.StdEncoding.EncodeToString(buf)
 }
+
+// handleUninstall serve uno script di disinstallazione per l'OS richiesto.
+func (s *Server) handleUninstall(w http.ResponseWriter, r *http.Request) {
+	osKind := r.URL.Query().Get("os")
+	if osKind == "" {
+		osKind = "windows"
+	}
+	var script, filename string
+	switch osKind {
+	case "windows":
+		script, filename = wrapWindowsCmd(uninstallWindows), "poxy-uninstall.cmd"
+	case "macos", "darwin":
+		script, filename = uninstallMacos, "poxy-uninstall.sh"
+	case "linux":
+		script, filename = uninstallLinux, "poxy-uninstall.sh"
+	default:
+		http.Error(w, "os non supportato (windows|macos|linux)", http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename=%q`, filename))
+	w.Write([]byte(script))
+}
+
+const uninstallWindows = `# poxy - disinstallazione (Windows). Eseguito dal wrapper .cmd (come admin).
+$ErrorActionPreference = "SilentlyContinue"
+Write-Host "Disinstallazione poxy..."
+$dir = "$env:LOCALAPPDATA\poxy"
+
+# ferma il client
+Get-Process poxy-client | Stop-Process -Force
+
+# avvio automatico
+Remove-Item ([Environment]::GetFolderPath('Startup') + "\poxy-client.vbs") -Force
+
+# MITM CA dallo store Root
+certutil -delstore Root "poxy MITM CA" | Out-Null
+
+# proxy di sistema
+$reg = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings"
+Set-ItemProperty $reg -Name ProxyEnable -Value 0
+Remove-ItemProperty $reg -Name ProxyServer
+Remove-ItemProperty $reg -Name AutoConfigURL
+
+# variabili d'ambiente
+foreach ($v in "NODE_EXTRA_CA_CERTS","HTTPS_PROXY","HTTP_PROXY","NO_PROXY") {
+  [Environment]::SetEnvironmentVariable($v, $null, "User")
+}
+
+# file
+Remove-Item -Recurse -Force $dir
+
+Write-Host ""
+Write-Host "poxy rimosso. Riavvia terminali e app."
+`
+
+const uninstallMacos = `#!/bin/bash
+# poxy - disinstallazione (macOS). Esegui: bash poxy-uninstall.sh
+echo "Disinstallazione poxy..."
+DIR="$HOME/.poxy"
+
+# avvio automatico + stop
+launchctl unload "$HOME/Library/LaunchAgents/com.poxy.client.plist" 2>/dev/null
+rm -f "$HOME/Library/LaunchAgents/com.poxy.client.plist"
+pkill -f poxy-client 2>/dev/null
+
+# MITM CA dal keychain
+security delete-certificate -c "poxy MITM CA" "$HOME/Library/Keychains/login.keychain-db" 2>/dev/null
+
+# variabili d'ambiente (rimuove il blocco POXY-ENV)
+for f in "$HOME/.zprofile" "$HOME/.bash_profile"; do
+  [ -f "$f" ] && sed -i '' '/# POXY-ENV/,/NO_PROXY/d' "$f" 2>/dev/null
+done
+
+# proxy di sistema (best-effort, richiede sudo su alcuni setup)
+# networksetup -setwebproxystate Wi-Fi off 2>/dev/null
+
+rm -rf "$DIR"
+echo "poxy rimosso. Riapri i terminali."
+`
+
+const uninstallLinux = `#!/bin/bash
+# poxy - disinstallazione (Linux). Esegui: bash poxy-uninstall.sh
+echo "Disinstallazione poxy..."
+DIR="$HOME/.poxy"
+
+# servizio systemd --user + stop
+systemctl --user disable --now poxy-client.service 2>/dev/null
+rm -f "$HOME/.config/systemd/user/poxy-client.service"
+systemctl --user daemon-reload 2>/dev/null
+pkill -f poxy-client 2>/dev/null
+
+# MITM CA di sistema
+if command -v sudo >/dev/null 2>&1; then
+  sudo rm -f /usr/local/share/ca-certificates/poxy-mitm.crt 2>/dev/null && sudo update-ca-certificates --fresh 2>/dev/null || true
+fi
+
+# variabili d'ambiente
+for f in "$HOME/.profile" "$HOME/.bashrc"; do
+  [ -f "$f" ] && sed -i '/# POXY-ENV/,/NO_PROXY/d' "$f" 2>/dev/null
+done
+
+rm -rf "$DIR"
+echo "poxy rimosso. Riapri i terminali."
+`
 
 var clientBinaryRe = regexp.MustCompile(`^poxy-client-(windows|darwin|linux)-(amd64|arm64)(\.exe)?$`)
 

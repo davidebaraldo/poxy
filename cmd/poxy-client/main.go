@@ -16,7 +16,9 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/yamux"
 
@@ -53,6 +55,17 @@ func main() {
 	}
 	mgr := &tunnelMgr{serverAddr: b.ServerAddr, tlsCfg: tlsCfg}
 
+	// Router per-dominio: solo i domini configurati sul server passano dal
+	// tunnel; tutto il resto va diretto. La lista arriva dal server via tunnel.
+	rt := &router{}
+	if pats, err := mgr.getRoutes(); err == nil {
+		rt.set(pats)
+		log.Printf("domini instradati nel tunnel: %d", len(pats))
+	} else {
+		log.Printf("lista domini non ancora disponibile (%v): tutto diretto finché non arriva", err)
+	}
+	go mgr.pollRoutes(rt)
+
 	ln, err := net.Listen("tcp", *listen)
 	if err != nil {
 		log.Fatalf("listen: %v", err)
@@ -60,13 +73,13 @@ func main() {
 	if !isLoopbackListen(*listen) {
 		log.Printf("ATTENZIONE: proxy locale su %s (non-loopback) e senza autenticazione: chiunque in rete puo' instradare traffico nel tunnel con la tua identita'. Usa un indirizzo loopback.", *listen)
 	}
-	log.Printf("proxy locale su %s -> tunnel %s", *listen, b.ServerAddr)
+	log.Printf("proxy locale su %s -> tunnel %s (solo domini in lista; resto diretto)", *listen, b.ServerAddr)
 	for {
 		c, err := ln.Accept()
 		if err != nil {
 			log.Fatalf("accept: %v", err)
 		}
-		go handle(c, mgr)
+		go handle(c, mgr, rt)
 	}
 }
 
@@ -143,7 +156,80 @@ func (m *tunnelMgr) dial() error {
 	return nil
 }
 
-func handle(c net.Conn, mgr *tunnelMgr) {
+// getRoutes chiede al server la lista dei pattern dominio da instradare nel tunnel.
+func (m *tunnelMgr) getRoutes() ([]string, error) {
+	st, err := m.stream()
+	if err != nil {
+		return nil, err
+	}
+	defer st.Close()
+	if err := tunnel.WritePreamble(st, tunnel.ModeCtl, "routes"); err != nil {
+		return nil, err
+	}
+	var pats []string
+	if err := json.NewDecoder(st).Decode(&pats); err != nil {
+		return nil, err
+	}
+	return pats, nil
+}
+
+// pollRoutes aggiorna periodicamente la lista dei domini.
+func (m *tunnelMgr) pollRoutes(rt *router) {
+	for {
+		time.Sleep(30 * time.Second)
+		if pats, err := m.getRoutes(); err == nil {
+			rt.set(pats)
+		}
+	}
+}
+
+// router decide quali host passano dal tunnel (in lista) e quali vanno diretti.
+type router struct {
+	mu       sync.RWMutex
+	patterns []string
+}
+
+func (r *router) set(p []string) {
+	r.mu.Lock()
+	r.patterns = p
+	r.mu.Unlock()
+}
+
+func (r *router) proxied(host string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, p := range r.patterns {
+		if matchHost(p, host) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchHost(pattern, host string) bool {
+	pattern = strings.ToLower(strings.TrimSpace(pattern))
+	host = strings.ToLower(strings.TrimSuffix(host, "."))
+	switch {
+	case pattern == "":
+		return false
+	case pattern == "*":
+		return true
+	case strings.HasPrefix(pattern, "*."):
+		suffix := pattern[1:] // ".example.com"
+		return strings.HasSuffix(host, suffix) && host != suffix[1:]
+	default:
+		return pattern == host
+	}
+}
+
+func stripPort(hostport string) string {
+	if h, _, err := net.SplitHostPort(hostport); err == nil {
+		return h
+	}
+	return hostport
+}
+
+func handle(c net.Conn, mgr *tunnelMgr, rt *router) {
 	defer c.Close()
 	br := bufio.NewReader(c)
 	req, err := http.ReadRequest(br)
@@ -152,31 +238,45 @@ func handle(c net.Conn, mgr *tunnelMgr) {
 	}
 
 	if req.Method == http.MethodConnect {
-		handleConnect(c, br, req, mgr)
+		handleConnect(c, br, req, mgr, rt)
 		return
 	}
-	handlePlain(c, br, req, mgr)
+	handlePlain(c, br, req, mgr, rt)
 }
 
-func handleConnect(c net.Conn, br *bufio.Reader, req *http.Request, mgr *tunnelMgr) {
+func handleConnect(c net.Conn, br *bufio.Reader, req *http.Request, mgr *tunnelMgr, rt *router) {
 	host := ensurePort(req.URL.Host, "443")
-	st, err := mgr.stream()
+	if rt.proxied(stripPort(host)) {
+		st, err := mgr.stream()
+		if err != nil {
+			writeGatewayError(c, err)
+			return
+		}
+		defer st.Close()
+		if err := tunnel.WritePreamble(st, tunnel.ModeTLS, host); err != nil {
+			return
+		}
+		io.WriteString(c, "HTTP/1.1 200 Connection established\r\n\r\n")
+		pipe(c, br, st)
+		return
+	}
+
+	// Dominio non in lista: connessione diretta (bypass del proxy).
+	dest, err := net.DialTimeout("tcp", host, 15*time.Second)
 	if err != nil {
 		writeGatewayError(c, err)
 		return
 	}
-	defer st.Close()
-	if err := tunnel.WritePreamble(st, tunnel.ModeTLS, host); err != nil {
-		return
-	}
+	defer dest.Close()
 	io.WriteString(c, "HTTP/1.1 200 Connection established\r\n\r\n")
+	pipe(c, br, dest)
+}
 
-	// Alla fine di una direzione, chiude entrambi i lati per sbloccare l'altra
-	// copia, poi attende che entrambe le goroutine terminino (niente troncamento
-	// prematuro perché non si ritorna finché entrambe non hanno finito).
+// pipe copia in entrambe le direzioni finché una termina, poi chiude e attende.
+func pipe(c net.Conn, cr io.Reader, other net.Conn) {
 	done := make(chan struct{}, 2)
-	go func() { io.Copy(st, br); st.Close(); c.Close(); done <- struct{}{} }()
-	go func() { io.Copy(c, st); c.Close(); st.Close(); done <- struct{}{} }()
+	go func() { io.Copy(other, cr); other.Close(); c.Close(); done <- struct{}{} }()
+	go func() { io.Copy(c, other); c.Close(); other.Close(); done <- struct{}{} }()
 	<-done
 	<-done
 }
@@ -193,7 +293,7 @@ func isLoopbackListen(addr string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
-func handlePlain(c net.Conn, br *bufio.Reader, req *http.Request, mgr *tunnelMgr) {
+func handlePlain(c net.Conn, br *bufio.Reader, req *http.Request, mgr *tunnelMgr, rt *router) {
 	for {
 		host := req.URL.Host
 		if host == "" {
@@ -201,30 +301,54 @@ func handlePlain(c net.Conn, br *bufio.Reader, req *http.Request, mgr *tunnelMgr
 		}
 		host = ensurePort(host, "80")
 
-		st, err := mgr.stream()
+		var err error
+		if rt.proxied(stripPort(host)) {
+			err = tunnelHTTP(c, req, host, mgr)
+		} else {
+			err = directHTTP(c, req, host)
+		}
 		if err != nil {
-			writeGatewayError(c, err)
 			return
 		}
-		if err := tunnel.WritePreamble(st, tunnel.ModeHTTP, host); err != nil {
-			st.Close()
-			return
-		}
-		if err := req.Write(st); err != nil {
-			st.Close()
-			return
-		}
-		if _, err := io.Copy(c, st); err != nil {
-			st.Close()
-			return
-		}
-		st.Close()
 
 		req, err = http.ReadRequest(br)
 		if err != nil {
 			return
 		}
 	}
+}
+
+func tunnelHTTP(c net.Conn, req *http.Request, host string, mgr *tunnelMgr) error {
+	st, err := mgr.stream()
+	if err != nil {
+		writeGatewayError(c, err)
+		return err
+	}
+	defer st.Close()
+	if err := tunnel.WritePreamble(st, tunnel.ModeHTTP, host); err != nil {
+		return err
+	}
+	if err := req.Write(st); err != nil {
+		return err
+	}
+	_, err = io.Copy(c, st)
+	return err
+}
+
+// directHTTP inoltra la richiesta direttamente all'origine (bypass del proxy).
+func directHTTP(c net.Conn, req *http.Request, host string) error {
+	dest, err := net.DialTimeout("tcp", host, 15*time.Second)
+	if err != nil {
+		writeGatewayError(c, err)
+		return err
+	}
+	defer dest.Close()
+	req.Close = true // una richiesta per connessione (l'origine chiude dopo)
+	if err := req.Write(dest); err != nil {
+		return err
+	}
+	_, err = io.Copy(c, dest)
+	return err
 }
 
 func writeGatewayError(c net.Conn, err error) {

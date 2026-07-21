@@ -224,6 +224,26 @@ func (s *Store) Resolve(host string) Effective {
 	return eff
 }
 
+// MatchHost indica se host è coperto dal pattern (esatto, "*.dominio", "*").
+func MatchHost(pattern, host string) bool {
+	host = strings.ToLower(strings.TrimSuffix(host, "."))
+	return matchScore(pattern, host) >= 0
+}
+
+// ProxiedPatterns restituisce i pattern dei domini configurati: sono i soli host
+// che il client deve instradare nel tunnel (il resto va diretto).
+func (s *Store) ProxiedPatterns() []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]string, 0, len(s.cfg.Domains))
+	for _, d := range s.cfg.Domains {
+		if p := strings.TrimSpace(d.Pattern); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 // bestMatch sceglie la regola dominio più specifica che matcha l'host.
 // Priorità: match esatto > wildcard più lunga > "*".
 func bestMatch(rules []DomainRule, host string) (DomainRule, bool) {
