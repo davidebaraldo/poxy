@@ -7,7 +7,21 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
+
+	"github.com/hashicorp/yamux"
 )
+
+// YamuxConfig è la configurazione condivisa del multiplexer. Alza la finestra
+// di stream a 4MB (default 256KB) per non strozzare il throughput sui link a
+// latenza alta (client remoti/WAN).
+func YamuxConfig() *yamux.Config {
+	c := yamux.DefaultConfig()
+	c.MaxStreamWindowSize = 4 * 1024 * 1024
+	c.KeepAliveInterval = 15 * time.Second
+	c.ConnectionWriteTimeout = 30 * time.Second
+	return c
+}
 
 // Modalità di uno stream aperto dal client verso il server.
 const (

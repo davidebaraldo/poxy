@@ -147,7 +147,7 @@ func (m *tunnelMgr) dial() error {
 	if err != nil {
 		return err
 	}
-	sess, err := yamux.Client(conn, nil)
+	sess, err := yamux.Client(conn, tunnel.YamuxConfig())
 	if err != nil {
 		conn.Close()
 		return err

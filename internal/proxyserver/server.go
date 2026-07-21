@@ -144,7 +144,7 @@ func (s *Server) handleTunnelConn(raw net.Conn) {
 	entry := s.registry.Add(id, addr)
 	defer s.registry.Remove(entry)
 
-	session, err := yamux.Server(raw, nil)
+	session, err := yamux.Server(raw, tunnel.YamuxConfig())
 	if err != nil {
 		return
 	}
