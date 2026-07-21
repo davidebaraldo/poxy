@@ -481,8 +481,19 @@ func binaryPath(name string) string {
 	return ""
 }
 
-const setupWindows = `# poxy - installer locale (Windows). Esegui come Amministratore.
+const setupWindows = `# poxy - installer locale (Windows).
+# Esegui:  powershell -ExecutionPolicy Bypass -File poxy-setup-*.ps1
 $ErrorActionPreference = "Stop"
+
+# auto-elevazione ad Amministratore (serve per installare la MITM CA)
+$pr = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $pr.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)) {
+  Write-Host "Richiedo privilegi di amministratore..."
+  $q = [char]34
+  Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile","-ExecutionPolicy","Bypass","-File","$q$PSCommandPath$q"
+  exit
+}
+
 Write-Host "Installazione poxy client..."
 
 $dir = "$env:LOCALAPPDATA\poxy"
