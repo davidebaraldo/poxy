@@ -170,12 +170,18 @@ function renderHeaders(h) {
   const keys = h ? Object.keys(h).sort() : [];
   if (!keys.length) return '<div class="muted small">nessuno</div>';
   const rows = keys
-    .map((k) => h[k].map((v) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join(""))
+    .map((k) => h[k].map((v) => `<tr><td>${esc(k)}</td><td class="hval" title="click per espandere">${esc(v)}</td></tr>`).join(""))
     .join("");
   return `<table class="hdr">${rows}</table>`;
 }
 
 $("#clear-traffic").addEventListener("click", () => { $("#traffic tbody").innerHTML = ""; });
+
+// Espandi/collassa i valori header lunghi (es. Authorization) al click.
+$("#traffic").addEventListener("click", (e) => {
+  const cell = e.target.closest(".hval");
+  if (cell) { cell.classList.toggle("expanded"); e.stopPropagation(); }
+});
 
 // --- egress / uscita ---
 async function loadEgress() {
